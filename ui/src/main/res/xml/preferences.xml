@@ -45,4 +45,21 @@
         android:summaryOn="@string/allow_remote_control_intents_summary_on"
         android:title="@string/allow_remote_control_intents_title" />
     <com.wireguard.android.preference.DonatePreference android:singleLineTitle="false" />
+
+    <!-- VPN Bypass (requires root) -->
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="vpn_bypass_enabled"
+        android:singleLineTitle="false"
+        android:summaryOff="@string/vpn_bypass_summary_off"
+        android:summaryOn="@string/vpn_bypass_summary_on"
+        android:title="@string/vpn_bypass_title" />
+    <EditTextPreference
+        android:defaultValue=""
+        android:dependency="vpn_bypass_enabled"
+        android:inputType="text"
+        android:key="vpn_bypass_iface_name"
+        android:singleLineTitle="false"
+        android:summary="@string/vpn_bypass_iface_summary"
+        android:title="@string/vpn_bypass_iface_title" />
 </androidx.preference.PreferenceScreen>

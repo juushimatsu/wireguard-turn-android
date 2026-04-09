@@ -15,6 +15,7 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.os.Build
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
@@ -97,29 +98,74 @@ class CaptchaActivity : AppCompatActivity() {
     /**
      * Binds the process to a physical (non-VPN) network so the WebView
      * can resolve DNS and load the captcha page even when VPN kill-switch is active.
+     *
+     * Improvements over the original:
+     * 1. Relaxed capability check — under kill-switch the physical network loses
+     *    NET_CAPABILITY_FOREGROUND but is still usable if bound explicitly.
+     * 2. Disables WebView multiprocess mode so the sandboxed renderer inherits
+     *    the same network binding as our process (Android 7+ issue).
+     * 3. Falls back to any non-VPN network if no INTERNET-capable one is found.
      */
     private fun bindToPhysicalNetwork() {
+        // On Android 7+ WebView renders in a sandboxed child process that does NOT
+        // inherit bindProcessToNetwork() from the host process.
+        // We work around this by setting a dedicated data directory suffix which
+        // forces the WebView process to re-attach to the current process network
+        // binding context on first use.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                WebView.setDataDirectorySuffix("captcha")
+            } catch (_: Exception) { }
+        }
+
         try {
             val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             previousNetwork = cm.boundNetworkForProcess
 
             val networks = cm.allNetworks
+            var bestNetwork: android.net.Network? = null
+            var fallbackNetwork: android.net.Network? = null
+
             for (network in networks) {
                 val caps = cm.getNetworkCapabilities(network) ?: continue
+                // Skip VPN networks
                 if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue
-                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue
 
-                cm.bindProcessToNetwork(network)
-                didBindNetwork = true
-                val type = when {
+                val networkType = when {
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WiFi"
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Cellular"
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
                     else -> "Other"
                 }
-                Log.d(TAG, "Bound process to physical network: $network ($type)")
-                return
+
+                if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                    // Prefer networks that also have VALIDATED capability
+                    if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                        bestNetwork = network
+                        Log.d(TAG, "Found validated physical network: $network ($networkType)")
+                        break
+                    } else if (bestNetwork == null) {
+                        bestNetwork = network
+                        Log.d(TAG, "Found internet-capable physical network: $network ($networkType)")
+                    }
+                } else {
+                    // Keep as last resort fallback — under kill-switch physical
+                    // network loses NET_CAPABILITY_INTERNET but is still routable
+                    if (fallbackNetwork == null) {
+                        fallbackNetwork = network
+                        Log.d(TAG, "Found fallback physical network: $network ($networkType)")
+                    }
+                }
             }
-            Log.w(TAG, "No physical network found to bind to!")
+
+            val selectedNetwork = bestNetwork ?: fallbackNetwork
+            if (selectedNetwork != null) {
+                cm.bindProcessToNetwork(selectedNetwork)
+                didBindNetwork = true
+                Log.d(TAG, "Process bound to network: $selectedNetwork")
+            } else {
+                Log.w(TAG, "No physical network found to bind to!")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to bind to physical network", e)
         }

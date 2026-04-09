@@ -118,4 +118,35 @@ object UserKnobs {
                 it[UPDATER_NEWER_VERSION_CONSENTED] = newerVersionConsented
         }
     }
+    // -------------------------------------------------------------------------
+    // VPN Bypass settings
+    // -------------------------------------------------------------------------
+
+    private val VPN_BYPASS_ENABLED = booleanPreferencesKey("vpn_bypass_enabled")
+    val vpnBypassEnabled: Flow<Boolean>
+        get() = Application.getPreferencesDataStore().data.map {
+            it[VPN_BYPASS_ENABLED] ?: false
+        }
+
+    suspend fun setVpnBypassEnabled(enabled: Boolean) {
+        Application.getPreferencesDataStore().edit {
+            it[VPN_BYPASS_ENABLED] = enabled
+        }
+    }
+
+    private val VPN_BYPASS_IFACE_NAME = stringPreferencesKey("vpn_bypass_iface_name")
+    val vpnBypassIfaceName: Flow<String?>
+        get() = Application.getPreferencesDataStore().data.map {
+            it[VPN_BYPASS_IFACE_NAME]
+        }
+
+    suspend fun setVpnBypassIfaceName(name: String?) {
+        Application.getPreferencesDataStore().edit {
+            if (name == null)
+                it.remove(VPN_BYPASS_IFACE_NAME)
+            else
+                it[VPN_BYPASS_IFACE_NAME] = name
+        }
+    }
+
 }

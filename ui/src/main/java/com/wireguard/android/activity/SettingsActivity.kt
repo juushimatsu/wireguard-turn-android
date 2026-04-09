@@ -14,9 +14,11 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.wireguard.android.Application
+import com.wireguard.android.backend.VpnBypassRunner
 import com.wireguard.android.QuickTileService
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
@@ -107,6 +109,21 @@ class SettingsActivity : AppCompatActivity() {
                 }
             } else {
                 kernelModuleEnabler?.parent?.removePreference(kernelModuleEnabler)
+            }
+
+            // VPN Bypass: validate and sanitize the interface name input
+            val bypassIfacePref = preferenceManager.findPreference<EditTextPreference>("vpn_bypass_iface_name")
+            bypassIfacePref?.setOnPreferenceChangeListener { _, newValue ->
+                val raw = newValue as? String ?: ""
+                val sanitized = VpnBypassRunner.sanitize(raw)
+                if (sanitized.isEmpty() && raw.isNotEmpty()) {
+                    // Reject — nothing valid left after sanitizing
+                    false
+                } else {
+                    // Store the sanitized value instead of the raw input
+                    bypassIfacePref.text = sanitized
+                    false  // return false because we set the value ourselves above
+                }
             }
         }
     }

@@ -81,8 +81,18 @@ class Application : android.app.Application() {
             }
         }
         if (backend == null) {
-            backend = GoBackend(applicationContext)
+            val goBackend = GoBackend(applicationContext)
             GoBackend.setAlwaysOnCallback { get().applicationScope.launch { get().tunnelManager.restoreState(true) } }
+            // Observe VPN bypass settings and push them to GoBackend whenever they change
+            UserKnobs.vpnBypassEnabled.onEach { enabled ->
+                val ifaceName = UserKnobs.vpnBypassIfaceName.first()
+                goBackend.setVpnBypass(enabled, ifaceName)
+            }.launchIn(coroutineScope)
+            UserKnobs.vpnBypassIfaceName.onEach { ifaceName ->
+                val enabled = UserKnobs.vpnBypassEnabled.first()
+                goBackend.setVpnBypass(enabled, ifaceName)
+            }.launchIn(coroutineScope)
+            backend = goBackend
         }
         return backend
     }

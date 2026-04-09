@@ -66,7 +66,7 @@
     <string name="allow_remote_control_intents_summary_on">External apps may toggle tunnels (advanced)</string>
     <string name="allow_remote_control_intents_title">Allow remote control apps</string>
     <string name="allowed_ips">Allowed IPs</string>
-    <string name="app_name" translatable="false">WG Turn</string>
+    <string name="app_name" translatable="false">WG Turn+Bypass</string>
     <string name="bad_config_context">%1$s\'s %2$s</string>
     <string name="bad_config_context_top_level">%s</string>
     <string name="bad_config_error">%1$s in %2$s</string>
@@ -302,4 +302,12 @@
     <string name="captcha_loading">Loading captcha…</string>
     <string name="captcha_error">Failed to solve captcha. Please try again.</string>
     <string name="captcha_instructions">Please complete the verification to continue</string>
+
+    <!-- VPN Bypass -->
+    <string name="vpn_bypass_title">Hide VPN (requires root)</string>
+    <string name="vpn_bypass_summary_off">VPN interface is visible to other apps</string>
+    <string name="vpn_bypass_summary_on">VPN interface is disguised via root</string>
+    <string name="vpn_bypass_iface_title">Disguise interface name</string>
+    <string name="vpn_bypass_iface_summary">Name shown to apps instead of the WireGuard interface (e.g. eth1, wlan1)</string>
+    <string name="vpn_bypass_root_error">VPN bypass failed: root access unavailable or command error</string>
 </resources>

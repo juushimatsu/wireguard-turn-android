@@ -48,6 +48,8 @@ public final class GoBackend implements Backend {
     @Nullable private Config currentConfig;
     @Nullable private Tunnel currentTunnel;
     private int currentTunnelHandle = -1;
+    private boolean vpnBypassEnabled = false;
+    @Nullable private String vpnBypassIfaceName = null;
 
     /**
      * Public constructor for GoBackend.
@@ -82,6 +84,18 @@ public final class GoBackend implements Backend {
     private static native String wgVersion();
 
     /**
+     * Enable or disable VPN bypass mode (hides TRANSPORT_VPN via root).
+     * Called from the UI module after user settings are read.
+     *
+     * @param enabled    Whether bypass should be active.
+     * @param ifaceName  The disguise interface name (e.g. "eth1"). Ignored if null/blank.
+     */
+    public void setVpnBypass(final boolean enabled, @Nullable final String ifaceName) {
+        this.vpnBypassEnabled = enabled;
+        this.vpnBypassIfaceName = (ifaceName != null && !ifaceName.trim().isEmpty()) ? ifaceName.trim() : null;
+    }
+
+        /**
      * Method to get the names of running tunnels.
      *
      * @return A set of string values denoting names of running tunnels.
@@ -350,6 +364,21 @@ public final class GoBackend implements Backend {
             // Protect WireGuard sockets
             service.protect(wgGetSocketV4(currentTunnelHandle));
             service.protect(wgGetSocketV6(currentTunnelHandle));
+
+            // Apply VPN bypass (root: rename interface + remove VPN routing rules)
+            if (vpnBypassEnabled && vpnBypassIfaceName != null) {
+                final String bypassTarget = vpnBypassIfaceName;
+                final String originalIfName = tunnel.getName();
+                final Thread bypassThread = new Thread(() -> {
+                    try {
+                        VpnBypassRunner.apply(originalIfName, bypassTarget);
+                    } catch (final Exception e) {
+                        Log.e(TAG, "VPN bypass failed", e);
+                    }
+                }, "vpn-bypass");
+                bypassThread.setDaemon(true);
+                bypassThread.start();
+            }
 
             // NEW: Start TURN proxy AFTER tunnel is established
             // This ensures VpnService.protect() will work for TURN sockets
